@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM رانندگان کسبی</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Tahoma, Vazir, sans-serif; background:#f1f5f9; margin:0; color:#0f172a; }
+  header {
+    background:#0f172a; color:#fff; padding:12px 20px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+  }
+  header h1 { font-size:16px; margin:0; }
+  header .who { font-size:13px; color:#cbd5e1; }
+  header button { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  nav { display:flex; gap:6px; background:#fff; padding:8px 20px; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; }
+  nav button { background:none; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; color:#475569; }
+  nav button.active { background:#2563eb; color:#fff; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .card { background:#fff; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .card h2 { font-size:15px; margin-top:0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:8px 6px; text-align:right; border-bottom:1px solid #eef1f5; }
+  th { color:#64748b; font-weight:600; }
+  tr:hover { background:#f8fafc; cursor:pointer; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; margin-bottom:10px; font-family:inherit; }
+  label { font-size:12px; color:#475569; }
+  .btn { background:#2563eb; color:#fff; border:none; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .btn.gray { background:#64748b; }
+  .btn.red { background:#dc2626; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; }
+  .badge.ok { background:#dcfce7; color:#166534; }
+  .badge.off { background:#fee2e2; color:#991b1b; }
+  .badge.due { background:#fef3c7; color:#92400e; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:160px; }
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:12px; padding:22px; width:100%; max-width:560px; max-height:88vh; overflow:auto; }
+  .modal h3 { margin-top:0; }
+  .close-x { float:left; cursor:pointer; color:#64748b; font-size:20px; }
+  .hist-item { border-right:3px solid #2563eb; padding:8px 12px; margin-bottom:8px; background:#f8fafc; border-radius:6px; font-size:13px; }
+  .hist-item .meta { color:#64748b; font-size:11px; margin-top:4px; }
+  #searchBox { max-width:320px; }
+  .empty { color:#94a3b8; text-align:center; padding:30px; font-size:13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚕 CRM تماس و تخصیص سفر رانندگان</h1>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <span class="who" id="whoami"></span>
+    <button onclick="logout()">خروج</button>
+  </div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="reminders" onclick="switchTab('reminders')">🔔 یادآوری‌ها <span id="reminderCount"></span></button>
+  <button class="tab-btn" data-tab="drivers" onclick="switchTab('drivers')">👤 راننده‌ها</button>
+  <button class="tab-btn" data-tab="import" onclick="switchTab('import')">📥 ورود از اکسل</button>
+</nav>
+
+<main>
+
+  <!-- REMINDERS TAB -->
+  <div id="tab-reminders" class="tab-content">
+    <div class="card">
+      <h2>تماس‌هایی که باید امروز پیگیری بشن</h2>
+      <div id="reminderList"><div class="empty">در حال بارگذاری...</div></div>
+    </div>
+  </div>
+
+  <!-- DRIVERS TAB -->
+  <div id="tab-drivers" class="tab-content" style="display:none">
+    <div class="card">
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <input id="searchBox" placeholder="جستجو بر اساس نام، شماره یا استان...">
+        <button class="btn" onclick="openDriverForm()">+ راننده جدید</button>
+      </div>
+      <table>
+        <thead><tr><th>نام</th><th>شماره</th><th>استان/محدوده</th><th>وضعیت</th></tr></thead>
+        <tbody id="driversTable"></tbody>
+      </table>
+      <div id="driversEmpty" class="empty" style="display:none">هنوز راننده‌ای ثبت نشده. از تب «ورود از اکسل» وارد کن یا دستی اضافه کن.</div>
+    </div>
+  </div>
+
+  <!-- IMPORT TAB -->
+  <div id="tab-import" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>ورود لیست راننده‌ها از فایل اکسل گوگل‌شیت</h2>
+      <p style="font-size:13px; color:#64748b;">فایل اکسل رو آپلود کن، شیت (استان) موردنظر رو انتخاب کن. ستون‌های شناخته‌شده (نام، شماره تماس، آدرس، محدوده، وضعیت، توضیحات) خودکار تشخیص داده میشن.</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+      <div id="sheetPicker" style="display:none; margin-top:10px;">
+        <label>انتخاب شیت (استان)</label>
+        <select id="sheetSelect" onchange="previewSheet()"></select>
+        <div id="previewBox" style="margin-top:12px;"></div>
+        <button class="btn" style="margin-top:10px;" onclick="confirmImport()">وارد کردن این شیت</button>
+        <div id="importResult" style="margin-top:10px; font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- DRIVER DETAIL / CALL LOG MODAL -->
+<div class="modal-bg" id="driverModalBg">
+  <div class="modal">
+    <span class="close-x" onclick="closeModal('driverModalBg')">✕</span>
+    <h3 id="dm-name"></h3>
+    <p style="font-size:13px; color:#64748b;" id="dm-info"></p>
+    <div class="row">
+      <div><span class="badge" id="dm-status"></span></div>
+    </div>
+    <hr>
+    <h3 style="font-size:14px;">ثبت تماس جدید</h3>
+    <div class="row">
+      <div><label>تاریخ سفر</label><input id="callTripDate" placeholder="مثلاً 1404/06/02"></div>
+      <div><label>شناسه سفر</label><input id="callTripId" placeholder="مثلاً شاتل یا کد سفر"></div>
+    </div>
+    <label>نتیجه تماس</label>
+    <select id="callResult">
+      <option value="پاسخ داد">پاسخ داد</option>
+      <option value="بی‌پاسخ">بی‌پاسخ</option>
+      <option value="سفر تخصیص داده شد">سفر تخصیص داده شد</option>
+      <option value="عدم قبول سفر">عدم قبول سفر</option>
+      <option value="غیرفعال شد">غیرفعال شد</option>
+    </select>
+    <label>توضیحات</label>
+    <textarea id="callNote" rows="2" placeholder="توضیح کوتاه..."></textarea>
+    <label>یادآوری تماس بعدی (اختیاری)</label>
+    <input id="callReminder" type="datetime-local">
+    <button class="btn" onclick="submitCall()">ثبت تماس</button>
+
+    <hr>
+    <h3 style="font-size:14px;">تاریخچه تماس‌ها</h3>
+    <div id="dm-history"><div class="empty">—</div></div>
+  </div>
+</div>
+
+<!-- NEW DRIVER MODAL -->
+<div class="modal-bg" id="newDriverModalBg">
+  <div class="modal">
+    <span class="close-x" onclick="closeModal('newDriverModalBg')">✕</span>
+    <h3>راننده جدید</h3>
+    <label>نام و نام خانوادگی</label><input id="nd-name">
+    <label>شماره تماس</label><input id="nd-phone">
+    <label>استان/محدوده</label><input id="nd-province">
+    <label>آدرس</label><input id="nd-address">
+    <label>وضعیت</label>
+    <select id="nd-status"><option>فعال</option><option>غیر فعال</option></select>
+    <button class="btn" onclick="saveNewDriver()">ذخیره</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+let driversCache = [];
+let currentDriverId = null;
+let importRows = [];
+
+auth.onAuthStateChanged(user => {
+  if (!user) { window.location.href = "index.html"; return; }
+  currentUser = user;
+  document.getElementById('whoami').textContent = user.email;
+  loadDrivers();
+  loadReminders();
+});
+function logout() { auth.signOut().then(() => window.location.href = "index.html"); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toEnglishDigits(s) {
+  if (!s) return s;
+  const fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+  return String(s).replace(/[۰-۹]/g, d => fa.indexOf(d)).replace(/[٠-٩]/g, d => ar.indexOf(d));
+}
+
+// ---------- DRIVERS ----------
+function loadDrivers() {
+  db.collection('drivers').orderBy('name').onSnapshot(snap => {
+    driversCache = [];
+    snap.forEach(doc => driversCache.push({ id: doc.id, ...doc.data() }));
+    renderDrivers(driversCache);
+  });
+}
+function renderDrivers(list) {
+  const tbody = document.getElementById('driversTable');
+  document.getElementById('driversEmpty').style.display = list.length ? 'none' : 'block';
+  tbody.innerHTML = list.map(d => `
+    <tr onclick="openDriver('${d.id}')">
+      <td>${d.name || '-'}</td>
+      <td>${d.phone || '-'}</td>
+      <td>${d.province || d.zone || '-'}</td>
+      <td><span class="badge ${d.status === 'فعال' ? 'ok' : 'off'}">${d.status || '-'}</span></td>
+    </tr>`).join('');
+}
+document.getElementById('searchBox').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  renderDrivers(driversCache.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    toEnglishDigits(d.phone || '').includes(toEnglishDigits(q)) ||
+    (d.province || '').toLowerCase().includes(q)));
+});
+
+function openDriverForm() { document.getElementById('newDriverModalBg').classList.add('show'); }
+function saveNewDriver() {
+  const name = document.getElementById('nd-name').value.trim();
+  if (!name) { alert('نام الزامیه'); return; }
+  db.collection('drivers').add({
+    name,
+    phone: toEnglishDigits(document.getElementById('nd-phone').value.trim()),
+    province: document.getElementById('nd-province').value.trim(),
+    address: document.getElementById('nd-address').value.trim(),
+    status: document.getElementById('nd-status').value,
+    createdAt: new Date().toISOString(),
+    updatedBy: currentUser.email
+  }).then(() => closeModal('newDriverModalBg'));
+}
+
+function openDriver(id) {
+  currentDriverId = id;
+  const d = driversCache.find(x => x.id === id);
+  document.getElementById('dm-name').textContent = d.name;
+  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}`;
+  document.getElementById('dm-status').textContent = d.status || '-';
+  document.getElementById('dm-status').className = 'badge ' + (d.status === 'فعال' ? 'ok' : 'off');
+  document.getElementById('callTripDate').value = '';
+  document.getElementById('callTripId').value = d.tripId || '';
+  document.getElementById('callNote').value = '';
+  document.getElementById('callReminder').value = '';
+  document.getElementById('driverModalBg').classList.add('show');
+  loadHistory(id);
+}
+function loadHistory(driverId) {
+  db.collection('calls').where('driverId', '==', driverId).orderBy('createdAt', 'desc').get().then(snap => {
+    const box = document.getElementById('dm-history');
+    if (snap.empty) { box.innerHTML = '<div class="empty">هنوز تماسی ثبت نشده</div>'; return; }
+    box.innerHTML = snap.docs.map(doc => {
+      const c = doc.data();
+      return `<div class="hist-item">
+        <b>${c.result}</b> ${c.tripId ? '— سفر: ' + c.tripId : ''} ${c.tripDate ? '(' + c.tripDate + ')' : ''}
+        <div>${c.note || ''}</div>
+        <div class="meta">ثبت‌شده توسط ${c.calledBy} — ${new Date(c.createdAt).toLocaleString('fa-IR')}
+        ${c.nextReminder ? ' | یادآوری بعدی: ' + new Date(c.nextReminder).toLocaleString('fa-IR') : ''}</div>
+      </div>`;
+    }).join('');
+  });
+}
+function submitCall() {
+  const d = driversCache.find(x => x.id === currentDriverId);
+  const reminder = document.getElementById('callReminder').value;
+  db.collection('calls').add({
+    driverId: currentDriverId,
+    driverName: d.name,
+    driverPhone: d.phone || '',
+    tripId: document.getElementById('callTripId').value.trim(),
+    tripDate: document.getElementById('callTripDate').value.trim(),
+    result: document.getElementById('callResult').value,
+    note: document.getElementById('callNote').value.trim(),
+    nextReminder: reminder ? new Date(reminder).toISOString() : '',
+    calledBy: currentUser.email,
+    createdAt: new Date().toISOString()
+  }).then(() => {
+    loadHistory(currentDriverId);
+    document.getElementById('callNote').value = '';
+    document.getElementById('callReminder').value = '';
+    loadReminders();
+  });
+}
+
+// ---------- REMINDERS ----------
+function loadReminders() {
+  const now = new Date();
+  const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+  db.collection('calls').where('nextReminder', '!=', '').get().then(snap => {
+    const due = [];
+    snap.forEach(doc => {
+      const c = doc.data();
+      if (c.nextReminder && new Date(c.nextReminder) <= endOfDay) due.push(c);
+    });
+    due.sort((a, b) => new Date(a.nextReminder) - new Date(b.nextReminder));
+    const box = document.getElementById('reminderList');
+    document.getElementById('reminderCount').textContent = due.length ? `(${due.length})` : '';
+    if (!due.length) { box.innerHTML = '<div class="empty">یادآوری فعالی برای امروز نیست 🎉</div>'; return; }
+    box.innerHTML = due.map(c => {
+      const overdue = new Date(c.nextReminder) < now;
+      return `<div class="hist-item" style="border-color:${overdue ? '#dc2626' : '#f59e0b'}" onclick="openDriver('${c.driverId}')">
+        <b>${c.driverName}</b> — ${c.driverPhone}
+        <span class="badge ${overdue ? 'off' : 'due'}" style="margin-right:6px;">${overdue ? 'دیرشده' : 'امروز'}</span>
+        <div class="meta">یادآوری: ${new Date(c.nextReminder).toLocaleString('fa-IR')} | آخرین یادداشت: ${c.note || '-'}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ---------- EXCEL IMPORT ----------
+const HEADER_MAP = {
+  'نام و نام خانوادگی': 'name', 'شماره تماس': 'phone', 'آدرس': 'address', 'آدرس ': 'address',
+  'محدوده': 'zone', 'زمان فعالیت': 'activityTime', 'وضعیت کنونی': 'status', 'وضعیت': 'status', 'وضیعت': 'status',
+  'شناسه سفر': 'tripId', 'کد سفر': 'tripId', 'خودرو': 'vehicle', 'پذیرش سفر': 'tripAcceptance',
+  'توضیحات پشتیبانی': 'supportNotes', 'توضیحات پشتیبان کسبی': 'supportNotes',
+  'توضیحات امور رانندگان': 'driverAffairsNotes', 'امور رانندگان': 'driverAffairsNotes',
+  'بخش فعالیت راننده': 'driverAffairsNotes', 'توضیحات': 'supportNotes'
+};
+let workbook = null;
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    workbook = XLSX.read(ev.target.result, { type: 'binary' });
+    const sel = document.getElementById('sheetSelect');
+    sel.innerHTML = workbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+    document.getElementById('sheetPicker').style.display = 'block';
+    previewSheet();
+  };
+  reader.readAsBinaryString(file);
+}
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i].some(cell => String(cell || '').trim() === 'نام و نام خانوادگی')) return i;
+  }
+  return -1;
+}
+function previewSheet() {
+  const sheetName = document.getElementById('sheetSelect').value;
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+  const headerIdx = findHeaderRow(rows);
+  if (headerIdx === -1) {
+    document.getElementById('previewBox').innerHTML = '<p style="color:#dc2626;">ردیف هدر (نام و نام خانوادگی) توی این شیت پیدا نشد.</p>';
+    importRows = [];
+    return;
+  }
+  const headers = rows[headerIdx].map(h => String(h || '').trim());
+  const dataRows = rows.slice(headerIdx + 1).filter(r => r.some(c => String(c || '').trim() !== ''));
+  importRows = dataRows.map(r => {
+    const obj = { province: sheetName, extra: '' };
+    headers.forEach((h, i) => {
+      const field = HEADER_MAP[h];
+      const val = String(r[i] || '').trim();
+      if (!val) return;
+      if (field) { obj[field] = field === 'phone' ? toEnglishDigits(val) : val; }
+      else if (h) { obj.extra += (obj.extra ? ' | ' : '') + h + ': ' + val; }
+    });
+    return obj;
+  }).filter(o => o.name);
+  document.getElementById('previewBox').innerHTML = `
+    <p style="font-size:13px;">تعداد ردیف قابل وارد کردن: <b>${importRows.length}</b> (فقط ردیف‌هایی که نام دارن)</p>
+    <table><thead><tr><th>نام</th><th>شماره</th><th>وضعیت</th></tr></thead>
+    <tbody>${importRows.slice(0, 5).map(o => `<tr><td>${o.name}</td><td>${o.phone || '-'}</td><td>${o.status || '-'}</td></tr>`).join('')}</tbody></table>
+    ${importRows.length > 5 ? '<p style="font-size:12px;color:#94a3b8;">...و بقیه</p>' : ''}`;
+}
+function confirmImport() {
+  if (!importRows.length) { alert('چیزی برای وارد کردن نیست'); return; }
+  const existingPhones = new Set(driversCache.map(d => toEnglishDigits(d.phone || '')));
+  let added = 0, skipped = 0;
+  const batchPromises = importRows.map(o => {
+    if (o.phone && existingPhones.has(o.phone)) { skipped++; return Promise.resolve(); }
+    added++;
+    return db.collection('drivers').add({
+      ...o, createdAt: new Date().toISOString(), updatedBy: currentUser.email
+    });
+  });
+  Promise.all(batchPromises).then(() => {
+    document.getElementById('importResult').textContent = `✅ ${added} راننده اضافه شد، ${skipped} مورد (شماره تکراری) رد شد.`;
+  });
+}
+</script>
+</body>
+</html>
