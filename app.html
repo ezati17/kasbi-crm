@@ -415,16 +415,19 @@ function statusBadgeClass(status) {
   if (status === 'بدون سفر') return 'due';
   if (status === 'منتظر کارت بعدی') return 'wait';
   if (status === 'مرخصی') return 'leave';
+  if (status === 'عدم قبول سفر') return 'off';
   if (status === 'خاتمه') return 'off';
   return '';
 }
-const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'خاتمه'];
+const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر', 'خاتمه'];
 function statusSelectHtml(d) {
   const current = STATUS_OPTIONS.includes(d.status) ? d.status : '';
   const extra = current ? '' : `<option value="" hidden>${d.status || '-'}</option>`;
+  const tripInfo = (d.status === 'در حال انجام سفر' && d.tripId)
+    ? `<div style="font-size:10px; color:#64748b; margin-top:3px; white-space:nowrap;">کد: ${d.tripId}${d.tripDate ? ' — ' + d.tripDate : ''}</div>` : '';
   return `<select class="badge ${statusBadgeClass(d.status)}" style="width:auto; margin:0; border:none; cursor:pointer;" onchange="quickSetStatus('${d.id}', this.value)">
     ${extra}${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
-  </select>`;
+  </select>${tripInfo}`;
 }
 function quickSetStatus(id, status) {
   db.collection('drivers').doc(id).update({ status }).catch(err => alert('خطا: ' + err.message));
@@ -604,12 +607,13 @@ function submitCall() {
   const reminder = getReminderISO();
   const result = document.getElementById('callResult').value;
   const tripId = document.getElementById('callTripId').value.trim();
+  const tripDate = document.getElementById('callTripDate').value.trim();
   db.collection('calls').add({
     driverId: currentDriverId,
     driverName: d.name,
     driverPhone: d.phone || '',
     tripId,
-    tripDate: document.getElementById('callTripDate').value.trim(),
+    tripDate,
     result,
     note: document.getElementById('callNote').value.trim(),
     nextReminder: reminder,
@@ -618,9 +622,11 @@ function submitCall() {
   }).then(() => {
     if (result === 'سفر تخصیص داده شد') {
       return db.collection('drivers').doc(currentDriverId).update({
-        status: 'در حال انجام سفر',
-        tripId: tripId
+        status: 'در حال انجام سفر', tripId, tripDate
       });
+    }
+    if (result === 'عدم قبول سفر') {
+      return db.collection('drivers').doc(currentDriverId).update({ status: 'عدم قبول سفر' });
     }
   }).then(() => {
     loadHistory(currentDriverId);
