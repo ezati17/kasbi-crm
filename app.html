@@ -85,8 +85,11 @@
         <button class="btn" onclick="openDriverForm()">+ راننده جدید</button>
       </div>
       <div id="provinceChips" style="margin-bottom:12px;"></div>
+      <div id="bulkBar" style="display:none; margin-bottom:10px;">
+        <button class="btn red" onclick="bulkDelete()">🗑 حذف کامل رانندگان انتخاب‌شده (<span id="bulkCount">0</span>)</button>
+      </div>
       <table>
-        <thead><tr><th>نام</th><th>شماره</th><th>استان/محدوده</th><th>وضعیت</th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="selectAllChk" style="width:auto; margin:0;" onchange="toggleSelectAll(this)"></th><th>نام</th><th>شماره</th><th>استان/محدوده</th><th>وضعیت</th><th></th></tr></thead>
         <tbody id="driversTable"></tbody>
       </table>
       <div id="driversEmpty" class="empty" style="display:none">هنوز راننده‌ای ثبت نشده. از تب «ورود از اکسل» وارد کن یا دستی اضافه کن.</div>
@@ -112,10 +115,14 @@
       <p style="font-size:12px; color:#64748b;">برای موضوعاتی که مربوط به یک راننده‌ی خاص نیست و نیاز به بررسی داره (مثلاً مشکل فنی، پرداخت، هماهنگی داخلی و...)</p>
       <label>موضوع</label><input id="tk-subject" placeholder="مثلاً مشکل در واریزی، هماهنگی با پشتیبانی و...">
       <label>توضیحات</label><textarea id="tk-desc" rows="3"></textarea>
+      <label>ارجاع به (ایمیل همکار — اختیاری)</label><input id="tk-assignee" placeholder="مثلاً sara@kasbi.local">
       <button class="btn" onclick="submitTicket()">ثبت تیکت</button>
     </div>
     <div class="card">
-      <h2>تیکت‌های ثبت‌شده</h2>
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <h2 style="margin:0;">تیکت‌های ثبت‌شده</h2>
+        <label style="width:auto; margin:0;"><input type="checkbox" id="tk-onlyMine" style="width:auto; margin-left:6px;" onchange="renderTickets()">فقط تیکت‌های ارجاع‌شده به من</label>
+      </div>
       <div id="ticketList"><div class="empty">در حال بارگذاری...</div></div>
     </div>
   </div>
@@ -138,6 +145,7 @@
       <h2>ابزار نگهداری</h2>
       <p style="font-size:12px; color:#64748b;">اگه راننده‌هایی هستن که وضعیتشون خالیه (تیره «-» نشون میده)، با این دکمه همه رو روی «بدون سفر» تنظیم کن.</p>
       <button class="btn gray" onclick="fixEmptyStatuses()">تنظیم خودکار وضعیت برای رانندگان بدون وضعیت</button>
+      <button class="btn gray" style="margin-top:8px;" onclick="migrateOldStatuses()">تبدیل وضعیت‌های قدیمی (فعال/غیرفعال) به وضعیت‌های جدید</button>
       <div id="fixStatusResult" style="margin-top:8px; font-size:13px;"></div>
     </div>
   </div>
@@ -418,13 +426,57 @@ function statusBadgeClass(status) {
   if (status === 'خاتمه') return 'off';
   return '';
 }
+const selectedDriverIds = new Set();
 function renderDriverRow(d) {
+  const checked = selectedDriverIds.has(d.id) ? 'checked' : '';
   return `<tr onclick="openDriver('${d.id}')">
+      <td onclick="event.stopPropagation()"><input type="checkbox" style="width:auto; margin:0;" ${checked} onchange="toggleSelectRow('${d.id}', this.checked)"></td>
       <td>${d.name || '-'}</td>
       <td>${d.phone || '-'}</td>
       <td><span style="text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); filterProvince('${(d.province || d.zone || '').replace(/'/g,"")}')">${d.province || d.zone || '-'}</span></td>
       <td><span class="badge ${statusBadgeClass(d.status)}">${d.status || '-'}</span></td>
+      <td onclick="event.stopPropagation()"><button class="btn red" style="padding:4px 8px; font-size:12px;" title="قطع همکاری (وضعیت میره روی خاتمه)" onclick="quickTerminate('${d.id}')">🗑</button></td>
     </tr>`;
+}
+function toggleSelectRow(id, checked) {
+  if (checked) selectedDriverIds.add(id); else selectedDriverIds.delete(id);
+  updateBulkBar();
+}
+function toggleSelectAll(chk) {
+  const rows = document.querySelectorAll('#driversTable input[type=checkbox]');
+  rows.forEach(r => { r.checked = chk.checked; });
+  if (chk.checked) applyFilterVisible().forEach(d => selectedDriverIds.add(d.id));
+  else selectedDriverIds.clear();
+  updateBulkBar();
+}
+function applyFilterVisible() {
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  return driversCache.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    toEnglishDigits(d.phone || '').includes(toEnglishDigits(q)) ||
+    (d.province || d.zone || '').toLowerCase().includes(q));
+}
+function updateBulkBar() {
+  document.getElementById('bulkCount').textContent = selectedDriverIds.size;
+  document.getElementById('bulkBar').style.display = selectedDriverIds.size ? 'block' : 'none';
+}
+function quickTerminate(id) {
+  const d = driversCache.find(x => x.id === id);
+  if (!confirm(`"${d.name}" به وضعیت «خاتمه» (قطع همکاری) منتقل بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط میره تو لیست قطع‌همکاری.`)) return;
+  db.collection('drivers').doc(id).update({ status: 'خاتمه' }).catch(err => alert('خطا: ' + err.message));
+}
+function bulkDelete() {
+  if (!selectedDriverIds.size) return;
+  if (!confirm(`مطمئنی می‌خوای ${selectedDriverIds.size} راننده رو کامل و برای همیشه حذف کنی؟ تاریخچه تماس‌هاشون هم پاک میشه.`)) return;
+  const ids = [...selectedDriverIds];
+  Promise.all(ids.map(id =>
+    db.collection('calls').where('driverId', '==', id).get()
+      .then(snap => Promise.all(snap.docs.map(doc => doc.ref.delete())))
+      .then(() => db.collection('drivers').doc(id).delete())
+  )).then(() => {
+    selectedDriverIds.clear();
+    updateBulkBar();
+  }).catch(err => alert('خطا در حذف گروهی: ' + err.message));
 }
 function renderProvinceChips() {
   const provinces = [...new Set(driversCache.map(d => d.province || d.zone).filter(Boolean))].sort();
@@ -624,36 +676,52 @@ function renderReports() {
 }
 
 // ---------- TICKETS ----------
+let ticketsCache = [];
 function submitTicket() {
   const subject = document.getElementById('tk-subject').value.trim();
   const desc = document.getElementById('tk-desc').value.trim();
+  const assignee = document.getElementById('tk-assignee').value.trim();
   if (!subject) { alert('موضوع الزامیه'); return; }
   db.collection('tickets').add({
-    subject, description: desc, status: 'باز',
+    subject, description: desc, assignedTo: assignee, status: 'باز',
     createdBy: currentUser.email, createdAt: new Date().toISOString()
   }).then(() => {
     document.getElementById('tk-subject').value = '';
     document.getElementById('tk-desc').value = '';
+    document.getElementById('tk-assignee').value = '';
   }).catch(err => alert('خطا: ' + err.message));
 }
 function loadTickets() {
   db.collection('tickets').onSnapshot(snap => {
-    const tickets = [];
-    snap.forEach(doc => tickets.push({ id: doc.id, ...doc.data() }));
-    tickets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    const box = document.getElementById('ticketList');
-    if (!tickets.length) { box.innerHTML = '<div class="empty">تیکتی ثبت نشده</div>'; return; }
-    box.innerHTML = tickets.map(t => `
-      <div class="hist-item" style="border-color:${t.status === 'باز' ? '#f59e0b' : '#22c55e'}">
-        <b>${t.subject}</b> <span class="badge ${t.status === 'باز' ? 'due' : 'ok'}" style="margin-right:6px;">${t.status}</span>
-        <div>${t.description || ''}</div>
-        <div class="meta">ثبت‌شده توسط ${t.createdBy} — ${new Date(t.createdAt).toLocaleString('fa-IR')}</div>
-        <button class="btn ${t.status === 'باز' ? 'gray' : ''}" style="margin-top:6px; padding:4px 10px; font-size:11px;" onclick="toggleTicket('${t.id}','${t.status === 'باز' ? 'بسته' : 'باز'}')">${t.status === 'باز' ? 'بستن تیکت' : 'بازکردن دوباره'}</button>
-      </div>`).join('');
+    ticketsCache = [];
+    snap.forEach(doc => ticketsCache.push({ id: doc.id, ...doc.data() }));
+    ticketsCache.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    renderTickets();
   });
+}
+function renderTickets() {
+  const onlyMine = document.getElementById('tk-onlyMine').checked;
+  const tickets = onlyMine ? ticketsCache.filter(t => t.assignedTo === currentUser.email) : ticketsCache;
+  const box = document.getElementById('ticketList');
+  if (!tickets.length) { box.innerHTML = '<div class="empty">تیکتی ثبت نشده</div>'; return; }
+  box.innerHTML = tickets.map(t => `
+    <div class="hist-item" style="border-color:${t.status === 'باز' ? '#f59e0b' : '#22c55e'}">
+      <b>${t.subject}</b> <span class="badge ${t.status === 'باز' ? 'due' : 'ok'}" style="margin-right:6px;">${t.status}</span>
+      <div>${t.description || ''}</div>
+      <div class="meta">ثبت‌شده توسط ${t.createdBy} — ${new Date(t.createdAt).toLocaleString('fa-IR')} ${t.assignedTo ? '| ارجاع به: ' + t.assignedTo : ''}</div>
+      <div class="row" style="margin-top:6px; align-items:center;">
+        <button class="btn ${t.status === 'باز' ? 'gray' : ''}" style="padding:4px 10px; font-size:11px; flex:none;" onclick="toggleTicket('${t.id}','${t.status === 'باز' ? 'بسته' : 'باز'}')">${t.status === 'باز' ? 'بستن تیکت' : 'بازکردن دوباره'}</button>
+        <input id="reassign-${t.id}" placeholder="ایمیل برای ارجاع/تغییر ارجاع" style="margin-bottom:0; flex:1; min-width:140px;" value="${t.assignedTo || ''}">
+        <button class="btn" style="padding:4px 10px; font-size:11px; flex:none;" onclick="reassignTicket('${t.id}')">ارجاع بده</button>
+      </div>
+    </div>`).join('');
 }
 function toggleTicket(id, newStatus) {
   db.collection('tickets').doc(id).update({ status: newStatus });
+}
+function reassignTicket(id) {
+  const val = document.getElementById('reassign-' + id).value.trim();
+  db.collection('tickets').doc(id).update({ assignedTo: val }).catch(err => alert('خطا: ' + err.message));
 }
 
 // ---------- MAINTENANCE ----------
@@ -662,6 +730,18 @@ function fixEmptyStatuses() {
   if (!toFix.length) { document.getElementById('fixStatusResult').textContent = 'همه‌ی رانندگان وضعیت دارن ✅'; return; }
   Promise.all(toFix.map(d => db.collection('drivers').doc(d.id).update({ status: 'بدون سفر' })))
     .then(() => { document.getElementById('fixStatusResult').textContent = `✅ وضعیت ${toFix.length} راننده روی «بدون سفر» تنظیم شد.`; });
+}
+function migrateOldStatuses() {
+  const knownNew = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'خاتمه'];
+  const toFix = driversCache.filter(d => d.status && !knownNew.includes(d.status));
+  if (!toFix.length) { document.getElementById('fixStatusResult').textContent = 'وضعیت قدیمی‌ای برای تبدیل پیدا نشد ✅'; return; }
+  const map = (s) => {
+    if (s === 'فعال') return 'در حال انجام سفر';
+    if (s === 'غیر فعال' || s === 'غیرفعال') return 'بدون سفر';
+    return 'بدون سفر';
+  };
+  Promise.all(toFix.map(d => db.collection('drivers').doc(d.id).update({ status: map(d.status) })))
+    .then(() => { document.getElementById('fixStatusResult').textContent = `✅ وضعیت ${toFix.length} راننده به وضعیت‌های جدید تبدیل شد.`; });
 }
 
 const HEADER_MAP = {
