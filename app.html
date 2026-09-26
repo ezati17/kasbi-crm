@@ -214,14 +214,6 @@
     <label>شماره تماس</label><input id="nd-phone">
     <label>استان/محدوده</label><input id="nd-province">
     <label>آدرس</label><input id="nd-address">
-    <label>وضعیت</label>
-    <select id="nd-status">
-      <option>در حال انجام سفر</option>
-      <option>بدون سفر</option>
-      <option>منتظر کارت بعدی</option>
-      <option>مرخصی</option>
-      <option>خاتمه</option>
-    </select>
     <button class="btn" onclick="saveDriverForm()">ذخیره</button>
   </div>
 </div>
@@ -426,6 +418,17 @@ function statusBadgeClass(status) {
   if (status === 'خاتمه') return 'off';
   return '';
 }
+const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'خاتمه'];
+function statusSelectHtml(d) {
+  const current = STATUS_OPTIONS.includes(d.status) ? d.status : '';
+  const extra = current ? '' : `<option value="" hidden>${d.status || '-'}</option>`;
+  return `<select class="badge ${statusBadgeClass(d.status)}" style="width:auto; margin:0; border:none; cursor:pointer;" onchange="quickSetStatus('${d.id}', this.value)">
+    ${extra}${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
+  </select>`;
+}
+function quickSetStatus(id, status) {
+  db.collection('drivers').doc(id).update({ status }).catch(err => alert('خطا: ' + err.message));
+}
 const selectedDriverIds = new Set();
 function renderDriverRow(d) {
   const checked = selectedDriverIds.has(d.id) ? 'checked' : '';
@@ -434,7 +437,7 @@ function renderDriverRow(d) {
       <td>${d.name || '-'}</td>
       <td>${d.phone || '-'}</td>
       <td><span style="text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); filterProvince('${(d.province || d.zone || '').replace(/'/g,"")}')">${d.province || d.zone || '-'}</span></td>
-      <td><span class="badge ${statusBadgeClass(d.status)}">${d.status || '-'}</span></td>
+      <td onclick="event.stopPropagation()">${statusSelectHtml(d)}</td>
       <td onclick="event.stopPropagation()"><button class="btn red" style="padding:4px 8px; font-size:12px;" title="قطع همکاری (وضعیت میره روی خاتمه)" onclick="quickTerminate('${d.id}')">🗑</button></td>
     </tr>`;
 }
@@ -521,7 +524,6 @@ function openDriverForm() {
   document.getElementById('nd-phone').value = '';
   document.getElementById('nd-province').value = '';
   document.getElementById('nd-address').value = '';
-  document.getElementById('nd-status').value = 'در حال انجام سفر';
   document.getElementById('newDriverModalBg').classList.add('show');
 }
 function openEditDriver() {
@@ -532,8 +534,6 @@ function openEditDriver() {
   document.getElementById('nd-phone').value = d.phone || '';
   document.getElementById('nd-province').value = d.province || d.zone || '';
   document.getElementById('nd-address').value = d.address || '';
-  const statusOptions = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'خاتمه'];
-  document.getElementById('nd-status').value = statusOptions.includes(d.status) ? d.status : statusOptions[0];
   closeModal('driverModalBg');
   document.getElementById('newDriverModalBg').classList.add('show');
 }
@@ -545,9 +545,9 @@ function saveDriverForm() {
     phone: toEnglishDigits(document.getElementById('nd-phone').value.trim()),
     province: document.getElementById('nd-province').value.trim(),
     address: document.getElementById('nd-address').value.trim(),
-    status: document.getElementById('nd-status').value,
     updatedBy: currentUser.email
   };
+  if (!editingDriverId) data.status = 'بدون سفر';
   const promise = editingDriverId
     ? db.collection('drivers').doc(editingDriverId).update(data)
     : db.collection('drivers').add({ ...data, createdAt: new Date().toISOString() });
@@ -558,7 +558,7 @@ function openDriver(id) {
   currentDriverId = id;
   const d = driversCache.find(x => x.id === id);
   document.getElementById('dm-name').textContent = d.name;
-  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}`;
+  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}${d.tripId ? ' | کد سفر فعلی: ' + d.tripId : ''}`;
   document.getElementById('dm-status').textContent = d.status || '-';
   document.getElementById('dm-status').className = 'badge ' + statusBadgeClass(d.status);
   document.getElementById('callTripDate').value = '';
@@ -602,17 +602,26 @@ function deleteDriver() {
 function submitCall() {
   const d = driversCache.find(x => x.id === currentDriverId);
   const reminder = getReminderISO();
+  const result = document.getElementById('callResult').value;
+  const tripId = document.getElementById('callTripId').value.trim();
   db.collection('calls').add({
     driverId: currentDriverId,
     driverName: d.name,
     driverPhone: d.phone || '',
-    tripId: document.getElementById('callTripId').value.trim(),
+    tripId,
     tripDate: document.getElementById('callTripDate').value.trim(),
-    result: document.getElementById('callResult').value,
+    result,
     note: document.getElementById('callNote').value.trim(),
     nextReminder: reminder,
     calledBy: currentUser.email,
     createdAt: new Date().toISOString()
+  }).then(() => {
+    if (result === 'سفر تخصیص داده شد') {
+      return db.collection('drivers').doc(currentDriverId).update({
+        status: 'در حال انجام سفر',
+        tripId: tripId
+      });
+    }
   }).then(() => {
     loadHistory(currentDriverId);
     document.getElementById('callNote').value = '';
