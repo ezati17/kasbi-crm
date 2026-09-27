@@ -430,8 +430,11 @@ function statusSelectHtml(d) {
     ${extra}${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
   </select>${tripInfo}`;
 }
+const TRASH_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1.2 14.2A2 2 0 0 1 15.8 22H8.2a2 2 0 0 1-2-1.8L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>`;
 function quickSetStatus(id, status) {
-  db.collection('drivers').doc(id).update({ status }).catch(err => alert('خطا: ' + err.message));
+  const update = { status };
+  if (status !== 'خاتمه') update.terminated = false;
+  db.collection('drivers').doc(id).update(update).catch(err => alert('خطا: ' + err.message));
 }
 const selectedDriverIds = new Set();
 function renderDriverRow(d) {
@@ -442,7 +445,7 @@ function renderDriverRow(d) {
       <td>${d.phone || '-'}</td>
       <td><span style="text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); filterProvince('${(d.province || d.zone || '').replace(/'/g,"")}')">${d.province || d.zone || '-'}</span></td>
       <td onclick="event.stopPropagation()">${statusSelectHtml(d)}</td>
-      <td onclick="event.stopPropagation()"><button class="btn red" style="padding:4px 8px; font-size:12px;" title="قطع همکاری (وضعیت میره روی خاتمه)" onclick="quickTerminate('${d.id}')">🗑</button></td>
+      <td onclick="event.stopPropagation()"><button class="btn red" style="padding:6px 9px;" title="قطع همکاری (بره تو لیست قطع‌همکاری)" onclick="quickTerminate('${d.id}')">${TRASH_SVG}</button></td>
     </tr>`;
 }
 function toggleSelectRow(id, checked) {
@@ -469,8 +472,8 @@ function updateBulkBar() {
 }
 function quickTerminate(id) {
   const d = driversCache.find(x => x.id === id);
-  if (!confirm(`"${d.name}" به وضعیت «خاتمه» (قطع همکاری) منتقل بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط میره تو لیست قطع‌همکاری.`)) return;
-  db.collection('drivers').doc(id).update({ status: 'خاتمه' }).catch(err => alert('خطا: ' + err.message));
+  if (!confirm(`"${d.name}" قطع همکاری بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط میره تو لیست «قطع همکاری».`)) return;
+  db.collection('drivers').doc(id).update({ status: 'خاتمه', terminated: true }).catch(err => alert('خطا: ' + err.message));
 }
 function bulkDelete() {
   if (!selectedDriverIds.size) return;
@@ -509,7 +512,7 @@ function applyFilter() {
 }
 document.getElementById('searchBox').addEventListener('input', applyFilter);
 function renderTerminated() {
-  const list = driversCache.filter(d => d.status === 'خاتمه');
+  const list = driversCache.filter(d => d.terminated === true);
   const tbody = document.getElementById('terminatedTable');
   tbody.innerHTML = list.map(d => `
     <tr onclick="openDriver('${d.id}')">
@@ -594,7 +597,7 @@ function loadHistory(driverId) {
 function deleteDriver() {
   const d = driversCache.find(x => x.id === currentDriverId);
   if (!confirm(`"${d.name}" به عنوان قطع‌همکاری ثبت بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط وضعیتش «خاتمه» میشه و میره تو لیست «قطع همکاری».`)) return;
-  db.collection('drivers').doc(currentDriverId).update({ status: 'خاتمه' })
+  db.collection('drivers').doc(currentDriverId).update({ status: 'خاتمه', terminated: true })
     .then(() => { closeModal('driverModalBg'); loadReminders(); })
     .catch(err => alert('خطا: ' + err.message));
 }
