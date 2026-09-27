@@ -35,6 +35,7 @@
   .badge.due { background:#fef3c7; color:#92400e; }
   .badge.wait { background:#dbeafe; color:#1e40af; }
   .badge.leave { background:#ede9fe; color:#6d28d9; }
+  .badge.terminated { background:#e5e7eb; color:#374151; }
   .row { display:flex; gap:10px; flex-wrap:wrap; }
   .row > div { flex:1; min-width:160px; }
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:50; padding:16px; }
@@ -416,10 +417,10 @@ function statusBadgeClass(status) {
   if (status === 'منتظر کارت بعدی') return 'wait';
   if (status === 'مرخصی') return 'leave';
   if (status === 'عدم قبول سفر') return 'off';
-  if (status === 'خاتمه') return 'off';
+  if (status === 'خاتمه') return 'terminated';
   return '';
 }
-const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر'];
+const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر', 'خاتمه'];
 function statusSelectHtml(d) {
   const current = STATUS_OPTIONS.includes(d.status) ? d.status : '';
   const extra = current ? '' : `<option value="" hidden>${d.status || '-'}</option>`;
