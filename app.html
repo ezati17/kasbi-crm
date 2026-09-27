@@ -171,7 +171,7 @@
     <div class="row">
       <div><span class="badge" id="dm-status"></span></div>
     </div>
-    <button class="btn red" style="margin-top:6px;" onclick="deleteDriver()">🗑 حذف راننده (قطع همکاری)</button>
+    <button class="btn red" style="margin-top:6px;" onclick="deleteDriver()">🚫 قطع همکاری با این راننده</button>
     <button class="btn gray" style="margin-top:6px;" onclick="openEditDriver()">✏️ ویرایش اطلاعات راننده</button>
     <hr>
     <h3 style="font-size:14px;">ثبت تماس جدید</h3>
@@ -419,12 +419,12 @@ function statusBadgeClass(status) {
   if (status === 'خاتمه') return 'off';
   return '';
 }
-const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر', 'خاتمه'];
+const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر'];
 function statusSelectHtml(d) {
   const current = STATUS_OPTIONS.includes(d.status) ? d.status : '';
   const extra = current ? '' : `<option value="" hidden>${d.status || '-'}</option>`;
-  const tripInfo = (d.status === 'در حال انجام سفر' && d.tripId)
-    ? `<div style="font-size:10px; color:#64748b; margin-top:3px; white-space:nowrap;">کد: ${d.tripId}${d.tripDate ? ' — ' + d.tripDate : ''}</div>` : '';
+  const tripInfo = (d.status === 'در حال انجام سفر' && (d.tripId || d.tripDate))
+    ? `<div style="font-size:10px; color:#64748b; margin-top:3px; white-space:nowrap;">${d.tripId ? 'کد: ' + d.tripId : ''}${d.tripDate ? ' — ' + d.tripDate : ''}</div>` : '';
   return `<select class="badge ${statusBadgeClass(d.status)}" style="width:auto; margin:0; border:none; cursor:pointer;" onchange="quickSetStatus('${d.id}', this.value)">
     ${extra}${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
   </select>${tripInfo}`;
@@ -561,7 +561,7 @@ function openDriver(id) {
   currentDriverId = id;
   const d = driversCache.find(x => x.id === id);
   document.getElementById('dm-name').textContent = d.name;
-  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}${d.tripId ? ' | کد سفر فعلی: ' + d.tripId : ''}`;
+  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}${d.tripId ? ' | کد سفر فعلی: ' + d.tripId : ''}${d.tripDate ? ' (تاریخ: ' + d.tripDate + ')' : ''}`;
   document.getElementById('dm-status').textContent = d.status || '-';
   document.getElementById('dm-status').className = 'badge ' + statusBadgeClass(d.status);
   document.getElementById('callTripDate').value = '';
@@ -592,15 +592,10 @@ function loadHistory(driverId) {
 }
 function deleteDriver() {
   const d = driversCache.find(x => x.id === currentDriverId);
-  if (!confirm(`مطمئنی می‌خوای "${d.name}" رو حذف کنی؟ تمام اطلاعات و تاریخچه تماس‌هاش برای همیشه پاک میشه و برنمی‌گرده.`)) return;
-  db.collection('calls').where('driverId', '==', currentDriverId).get().then(snap => {
-    const deletions = snap.docs.map(doc => doc.ref.delete());
-    return Promise.all(deletions);
-  }).then(() => db.collection('drivers').doc(currentDriverId).delete())
-    .then(() => {
-      closeModal('driverModalBg');
-      loadReminders();
-    }).catch(err => alert('خطا در حذف: ' + err.message));
+  if (!confirm(`"${d.name}" به عنوان قطع‌همکاری ثبت بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط وضعیتش «خاتمه» میشه و میره تو لیست «قطع همکاری».`)) return;
+  db.collection('drivers').doc(currentDriverId).update({ status: 'خاتمه' })
+    .then(() => { closeModal('driverModalBg'); loadReminders(); })
+    .catch(err => alert('خطا: ' + err.message));
 }
 function submitCall() {
   const d = driversCache.find(x => x.id === currentDriverId);
@@ -728,6 +723,7 @@ function renderTickets() {
         <button class="btn ${t.status === 'باز' ? 'gray' : ''}" style="padding:4px 10px; font-size:11px; flex:none;" onclick="toggleTicket('${t.id}','${t.status === 'باز' ? 'بسته' : 'باز'}')">${t.status === 'باز' ? 'بستن تیکت' : 'بازکردن دوباره'}</button>
         <input id="reassign-${t.id}" placeholder="ایمیل برای ارجاع/تغییر ارجاع" style="margin-bottom:0; flex:1; min-width:140px;" value="${t.assignedTo || ''}">
         <button class="btn" style="padding:4px 10px; font-size:11px; flex:none;" onclick="reassignTicket('${t.id}')">ارجاع بده</button>
+        ${currentUser.email === 'mrezati17@gmail.com' ? `<button class="btn red" style="padding:4px 10px; font-size:11px; flex:none;" onclick="deleteTicket('${t.id}')">🗑 حذف</button>` : ''}
       </div>
     </div>`).join('');
 }
@@ -737,6 +733,11 @@ function toggleTicket(id, newStatus) {
 function reassignTicket(id) {
   const val = document.getElementById('reassign-' + id).value.trim();
   db.collection('tickets').doc(id).update({ assignedTo: val }).catch(err => alert('خطا: ' + err.message));
+}
+function deleteTicket(id) {
+  if (currentUser.email !== 'mrezati17@gmail.com') { alert('فقط ادمین می‌تونه تیکت رو حذف کنه.'); return; }
+  if (!confirm('این تیکت برای همیشه پاک بشه؟')) return;
+  db.collection('tickets').doc(id).delete().catch(err => alert('خطا: ' + err.message));
 }
 
 // ---------- MAINTENANCE ----------
