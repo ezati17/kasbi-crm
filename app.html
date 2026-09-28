@@ -3,82 +3,856 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ورود | CRM رانندگان کسبی</title>
+<title>CRM رانندگان کسبی</title>
 <style>
   * { box-sizing: border-box; }
-  body {
-    font-family: Tahoma, Vazir, sans-serif;
-    background: #0f172a;
-    display: flex; align-items: center; justify-content: center;
-    height: 100vh; margin: 0;
+  body { font-family: Tahoma, Vazir, sans-serif; background:#f1f5f9; margin:0; color:#0f172a; }
+  header {
+    background:#0f172a; color:#fff; padding:12px 20px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
   }
-  .box {
-    background: #fff; border-radius: 14px; padding: 32px 28px;
-    width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,.3);
-  }
-  h1 { font-size: 18px; text-align: center; color: #0f172a; margin-bottom: 4px; }
-  p.sub { text-align: center; color: #64748b; font-size: 13px; margin-top: 0; margin-bottom: 22px; }
-  label { font-size: 13px; color: #334155; display:block; margin-bottom: 6px; }
-  input {
-    width: 100%; padding: 10px 12px; margin-bottom: 14px;
-    border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;
-  }
-  button {
-    width: 100%; padding: 11px; background: #2563eb; color: #fff;
-    border: none; border-radius: 8px; font-size: 15px; cursor: pointer;
-  }
-  button:disabled { opacity: .6; cursor: not-allowed; }
-  #err { color: #dc2626; font-size: 13px; text-align: center; margin-top: 10px; min-height: 16px; }
+  header h1 { font-size:16px; margin:0; }
+  header .who { font-size:13px; color:#cbd5e1; }
+  header button { background:#334155; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  nav { display:flex; gap:6px; background:#fff; padding:8px 20px; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; }
+  nav button { background:none; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; color:#475569; }
+  nav button.active { background:#2563eb; color:#fff; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .card { background:#fff; border-radius:12px; padding:18px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .card h2 { font-size:15px; margin-top:0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:8px 6px; text-align:right; border-bottom:1px solid #eef1f5; }
+  th { color:#64748b; font-weight:600; }
+  tr:hover { background:#f8fafc; cursor:pointer; }
+  input, select, textarea { width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; margin-bottom:10px; font-family:inherit; }
+  label { font-size:12px; color:#475569; }
+  .btn { background:#2563eb; color:#fff; border:none; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .btn.gray { background:#64748b; }
+  .btn.red { background:#dc2626; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; }
+  .badge.ok { background:#dcfce7; color:#166534; }
+  .badge.off { background:#fee2e2; color:#991b1b; }
+  .badge.due { background:#fef3c7; color:#92400e; }
+  .badge.wait { background:#dbeafe; color:#1e40af; }
+  .badge.leave { background:#ede9fe; color:#6d28d9; }
+  .badge.terminated { background:#e5e7eb; color:#374151; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:160px; }
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:12px; padding:22px; width:100%; max-width:560px; max-height:88vh; overflow:auto; }
+  .modal h3 { margin-top:0; }
+  .close-x { float:left; cursor:pointer; color:#64748b; font-size:20px; }
+  .hist-item { border-right:3px solid #2563eb; padding:8px 12px; margin-bottom:8px; background:#f8fafc; border-radius:6px; font-size:13px; }
+  .hist-item .meta { color:#64748b; font-size:11px; margin-top:4px; }
+  #searchBox { max-width:320px; }
+  .empty { color:#94a3b8; text-align:center; padding:30px; font-size:13px; }
 </style>
 </head>
 <body>
-  <div class="box">
-    <h1>CRM تماس و تخصیص سفر رانندگان</h1>
-    <p class="sub">با یوزر تیمی خودت وارد شو</p>
-    <label>ایمیل کاربری</label>
-    <input id="email" type="email" placeholder="name@kasbi.local" autocomplete="username">
-    <label>رمز عبور</label>
-    <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password">
-    <button id="loginBtn" onclick="doLogin()">ورود</button>
-    <div id="err"></div>
+
+<header>
+  <h1>🚕 CRM تماس و تخصیص سفر رانندگان</h1>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <span class="who" id="whoami"></span>
+    <button onclick="logout()">خروج</button>
+  </div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="reminders" onclick="switchTab('reminders')">🔔 یادآوری‌ها <span id="reminderCount"></span></button>
+  <button class="tab-btn" data-tab="drivers" onclick="switchTab('drivers')">👤 راننده‌ها</button>
+  <button class="tab-btn" data-tab="terminated" onclick="switchTab('terminated')">🚫 قطع همکاری</button>
+  <button class="tab-btn" data-tab="tickets" onclick="switchTab('tickets')">🎫 تیکت‌ها</button>
+  <button class="tab-btn" data-tab="import" onclick="switchTab('import')">📥 ورود از اکسل</button>
+  <button class="tab-btn" data-tab="reports" id="reportsTabBtn" onclick="switchTab('reports')" style="display:none">📊 گزارش تیم</button>
+</nav>
+
+<main>
+
+  <!-- REMINDERS TAB -->
+  <div id="tab-reminders" class="tab-content">
+    <div class="card">
+      <h2>تماس‌هایی که باید امروز پیگیری بشن</h2>
+      <div id="reminderList"><div class="empty">در حال بارگذاری...</div></div>
+    </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-  <script src="firebase-config.js"></script>
-  <script>
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+  <!-- DRIVERS TAB -->
+  <div id="tab-drivers" class="tab-content" style="display:none">
+    <div class="card">
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <input id="searchBox" placeholder="جستجو بر اساس نام، شماره یا استان...">
+        <button class="btn" onclick="openDriverForm()">+ راننده جدید</button>
+      </div>
+      <div id="provinceChips" style="margin-bottom:12px;"></div>
+      <div id="bulkBar" style="display:none; margin-bottom:10px;">
+        <button class="btn red" onclick="bulkDelete()">🗑 حذف کامل رانندگان انتخاب‌شده (<span id="bulkCount">0</span>)</button>
+      </div>
+      <table>
+        <thead><tr><th><input type="checkbox" id="selectAllChk" style="width:auto; margin:0;" onchange="toggleSelectAll(this)"></th><th>نام</th><th>شماره</th><th>استان/محدوده</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody id="driversTable"></tbody>
+      </table>
+      <div id="driversEmpty" class="empty" style="display:none">هنوز راننده‌ای ثبت نشده. از تب «ورود از اکسل» وارد کن یا دستی اضافه کن.</div>
+    </div>
+  </div>
 
-    // اگر قبلاً لاگین کرده مستقیم بره به اپ
-    auth.onAuthStateChanged(user => {
-      if (user) window.location.href = "app.html";
+  <!-- TERMINATED DRIVERS TAB -->
+  <div id="tab-terminated" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>🚫 رانندگان قطع‌همکاری (خاتمه)</h2>
+      <table>
+        <thead><tr><th>نام</th><th>شماره</th><th>استان/محدوده</th></tr></thead>
+        <tbody id="terminatedTable"></tbody>
+      </table>
+      <div id="terminatedEmpty" class="empty" style="display:none">راننده‌ی قطع‌همکاری‌ای ثبت نشده.</div>
+    </div>
+  </div>
+
+  <!-- TICKETS TAB -->
+  <div id="tab-tickets" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>ثبت تیکت جدید</h2>
+      <p style="font-size:12px; color:#64748b;">برای موضوعاتی که مربوط به یک راننده‌ی خاص نیست و نیاز به بررسی داره (مثلاً مشکل فنی، پرداخت، هماهنگی داخلی و...)</p>
+      <label>موضوع</label><input id="tk-subject" placeholder="مثلاً مشکل در واریزی، هماهنگی با پشتیبانی و...">
+      <label>توضیحات</label><textarea id="tk-desc" rows="3"></textarea>
+      <label>ارجاع به (ایمیل همکار — اختیاری)</label><input id="tk-assignee" placeholder="مثلاً sara@kasbi.local">
+      <button class="btn" onclick="submitTicket()">ثبت تیکت</button>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <h2 style="margin:0;">تیکت‌های ثبت‌شده</h2>
+        <label style="width:auto; margin:0;"><input type="checkbox" id="tk-onlyMine" style="width:auto; margin-left:6px;" onchange="renderTickets()">فقط تیکت‌های ارجاع‌شده به من</label>
+      </div>
+      <div id="ticketList"><div class="empty">در حال بارگذاری...</div></div>
+    </div>
+  </div>
+
+  <!-- IMPORT TAB -->
+  <div id="tab-import" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>ورود لیست راننده‌ها از فایل اکسل گوگل‌شیت</h2>
+      <p style="font-size:13px; color:#64748b;">فایل اکسل رو آپلود کن، شیت (استان) موردنظر رو انتخاب کن. ستون‌های شناخته‌شده (نام، شماره تماس، آدرس، محدوده، وضعیت، توضیحات) خودکار تشخیص داده میشن. ستون‌هایی که توی خود گوگل‌شیت مخفی (Hide) شدن، وارد نمیشن.</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+      <div id="sheetPicker" style="display:none; margin-top:10px;">
+        <label>انتخاب شیت (استان)</label>
+        <select id="sheetSelect" onchange="previewSheet()"></select>
+        <div id="previewBox" style="margin-top:12px;"></div>
+        <button class="btn" style="margin-top:10px;" onclick="confirmImport()">وارد کردن این شیت</button>
+        <div id="importResult" style="margin-top:10px; font-size:13px;"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>ابزار نگهداری</h2>
+      <p style="font-size:12px; color:#64748b;">اگه راننده‌هایی هستن که وضعیتشون خالیه (تیره «-» نشون میده)، با این دکمه همه رو روی «بدون سفر» تنظیم کن.</p>
+      <button class="btn gray" onclick="fixEmptyStatuses()">تنظیم خودکار وضعیت برای رانندگان بدون وضعیت</button>
+      <button class="btn gray" style="margin-top:8px;" onclick="migrateOldStatuses()">تبدیل وضعیت‌های قدیمی (فعال/غیرفعال) به وضعیت‌های جدید</button>
+      <div id="fixStatusResult" style="margin-top:8px; font-size:13px;"></div>
+    </div>
+  </div>
+
+  <!-- REPORTS TAB (admin only) -->
+  <div id="tab-reports" class="tab-content" style="display:none">
+    <div class="card">
+      <h2>📊 گزارش کامل تماس‌های ثبت‌شده توسط تیم</h2>
+      <label>فیلتر بر اساس کاربر</label>
+      <select id="reportAgentFilter" onchange="renderReports()"><option value="">همه‌ی کاربران</option></select>
+      <div id="reportList"><div class="empty">در حال بارگذاری...</div></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- DRIVER DETAIL / CALL LOG MODAL -->
+<div class="modal-bg" id="driverModalBg">
+  <div class="modal">
+    <span class="close-x" onclick="closeModal('driverModalBg')">✕</span>
+    <h3 id="dm-name"></h3>
+    <p style="font-size:13px; color:#64748b;" id="dm-info"></p>
+    <div class="row">
+      <div><span class="badge" id="dm-status"></span></div>
+    </div>
+    <button class="btn red" style="margin-top:6px;" onclick="deleteDriver()">🚫 قطع همکاری با این راننده</button>
+    <button class="btn gray" style="margin-top:6px;" onclick="openEditDriver()">✏️ ویرایش اطلاعات راننده</button>
+    <hr>
+    <h3 style="font-size:14px;">ثبت تماس جدید</h3>
+    <div class="row">
+      <div><label>تاریخ سفر</label><input id="callTripDate" placeholder="مثلاً 1404/06/02"></div>
+      <div><label>شناسه سفر</label><input id="callTripId" placeholder="کد سفر"></div>
+    </div>
+    <label>نتیجه تماس</label>
+    <select id="callResult">
+      <option value="پاسخ داد">پاسخ داد</option>
+      <option value="بی‌پاسخ">بی‌پاسخ</option>
+      <option value="سفر تخصیص داده شد">سفر تخصیص داده شد</option>
+      <option value="عدم قبول سفر">عدم قبول سفر</option>
+      <option value="غیرفعال شد">غیرفعال شد</option>
+    </select>
+    <label>توضیحات</label>
+    <textarea id="callNote" rows="2" placeholder="توضیح کوتاه..."></textarea>
+    <label><input type="checkbox" id="rem-enable" style="width:auto; margin-left:6px;" onchange="document.getElementById('rem-fields').style.opacity = this.checked ? 1 : .4">یادآوری تماس بعدی رو فعال کن</label>
+    <div id="rem-fields" class="row" style="margin-bottom:10px; opacity:.4;">
+      <div><label style="font-size:11px;">روز</label><select id="rem-day"></select></div>
+      <div><label style="font-size:11px;">ماه</label><select id="rem-month"></select></div>
+      <div><label style="font-size:11px;">سال</label><select id="rem-year"></select></div>
+      <div><label style="font-size:11px;">ساعت</label><select id="rem-hour"></select></div>
+      <div><label style="font-size:11px;">دقیقه</label><select id="rem-min"></select></div>
+    </div>
+    <button class="btn" onclick="submitCall()">ثبت تماس</button>
+
+    <hr>
+    <h3 style="font-size:14px;">تاریخچه تماس‌ها</h3>
+    <div id="dm-history"><div class="empty">—</div></div>
+  </div>
+</div>
+
+<!-- NEW DRIVER MODAL -->
+<div class="modal-bg" id="newDriverModalBg">
+  <div class="modal">
+    <span class="close-x" onclick="closeModal('newDriverModalBg')">✕</span>
+    <h3 id="nd-title">راننده جدید</h3>
+    <label>نام و نام خانوادگی</label><input id="nd-name">
+    <label>شماره تماس</label><input id="nd-phone">
+    <label>استان/محدوده</label><input id="nd-province">
+    <label>آدرس</label><input id="nd-address">
+    <button class="btn" onclick="saveDriverForm()">ذخیره</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+if (typeof firebase === 'undefined') {
+  document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:Tahoma">اسکریپت‌های Firebase بارگذاری نشد — VPN رو روشن و متصل کن و صفحه رو با Ctrl+Shift+R رفرش کن.<br><br><a href="index.html?noauto=1">برگشت به صفحه ورود</a></div>';
+  throw new Error('firebase not loaded');
+}
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+let driversCache = [];
+let currentDriverId = null;
+let importRows = [];
+
+const ADMIN_EMAILS = ['mrezati17@gmail.com'];
+auth.onAuthStateChanged(user => {
+  if (!user) { window.location.href = "index.html?noauto=1"; return; }
+  currentUser = user;
+  document.getElementById('whoami').textContent = user.email;
+  loadDrivers();
+  loadReminders();
+  loadTickets();
+  checkAlarms();
+  if (ADMIN_EMAILS.includes(user.email)) {
+    document.getElementById('reportsTabBtn').style.display = 'inline-block';
+    loadAllCallsForReports();
+  }
+});
+function logout() { auth.signOut().then(() => window.location.href = "index.html?noauto=1"); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toEnglishDigits(s) {
+  if (!s) return s;
+  const fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+  return String(s).replace(/[۰-۹]/g, d => fa.indexOf(d)).replace(/[٠-٩]/g, d => ar.indexOf(d));
+}
+
+// ---------- JALALI DATE HELPERS ----------
+function div(a, b) { return ~~(a / b); }
+function jalCal(jy) {
+  const breaks = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+  let bl = breaks.length, gy = jy + 621, leapJ = -14, jp = breaks[0], jm, jump, leap, n, i;
+  if (jy < jp || jy >= breaks[bl - 1]) throw new Error('invalid jalali year');
+  for (i = 1; i < bl; i += 1) {
+    jm = breaks[i]; jump = jm - jp;
+    if (jy < jm) break;
+    leapJ = leapJ + div(jump, 33) * 8 + div((jump % 33), 4);
+    jp = jm;
+  }
+  n = jy - jp;
+  leapJ = leapJ + div(n, 33) * 8 + div((n % 33) + 3, 4);
+  if ((jump % 33) === 4 && jump - n === 4) leapJ += 1;
+  const leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150;
+  const march = 20 + leapJ - leapG;
+  if (jump - n < 6) n = n - jump + div(jump + 4, 33) * 33;
+  leap = ((n + 1) % 33 - 1) % 4;
+  if (leap === -1) leap = 4;
+  return { leap, march };
+}
+function j2d(jy, jm, jd) {
+  const r = jalCal(jy);
+  return g2d(jy + 621, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
+}
+function g2d(gy, gm, gd) {
+  let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * ((gm + 9) % 12) + 2, 5) + gd - 34840408;
+  d = d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
+  return d;
+}
+function d2g(jdn) {
+  let j = 4 * jdn + 139361631;
+  j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
+  const i = div((j % 1461), 4) * 5 + 308;
+  const gd = div(i % 153, 5) + 1;
+  const gm = (div(i, 153) % 12) + 1;
+  const gy = div(j, 1461) - 100100 + div(8 - gm, 6);
+  return [gy, gm, gd];
+}
+function toJalali(gy, gm, gd) {
+  const jdn = g2d(gy, gm, gd);
+  return d2j(jdn);
+}
+function d2j(jdn) {
+  let gy = d2g(jdn)[0];
+  let jy = gy - 621;
+  const r = jalCal(jy);
+  const jdn1f = g2d(gy, 3, r.march);
+  let k = jdn - jdn1f, jm, jd;
+  if (k >= 0) {
+    if (k <= 185) { jm = 1 + div(k, 31); jd = (k % 31) + 1; return [jy, jm, jd]; }
+    else { k -= 186; }
+  } else { jy -= 1; k += 179 + (jalCal(jy).leap ? 1 : 0); }
+  jm = 7 + div(k, 30); jd = (k % 30) + 1;
+  return [jy, jm, jd];
+}
+function jalaliToGregorian(jy, jm, jd) {
+  const jdn = j2d(jy, jm, jd);
+  return d2g(jdn);
+}
+const JMONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+function jalaliDaysInMonth(jy, jm) {
+  if (jm <= 6) return 31;
+  if (jm <= 11) return 30;
+  return jalCal(jy).leap ? 30 : 29;
+}
+function fillReminderPicker() {
+  const now = new Date();
+  const [jy, jm, jd] = toJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const daySel = document.getElementById('rem-day'), monSel = document.getElementById('rem-month'),
+        yearSel = document.getElementById('rem-year'), hourSel = document.getElementById('rem-hour'), minSel = document.getElementById('rem-min');
+  monSel.innerHTML = JMONTHS.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+  yearSel.innerHTML = [jy, jy + 1].map(y => `<option value="${y}">${y}</option>`).join('');
+  function fillDays() {
+    const my = parseInt(yearSel.value), mm = parseInt(monSel.value);
+    const dim = jalaliDaysInMonth(my, mm);
+    const prevVal = daySel.value;
+    daySel.innerHTML = Array.from({length: dim}, (_, i) => i + 1).map(d => `<option value="${d}">${d}</option>`).join('');
+    if (prevVal && prevVal <= dim) daySel.value = prevVal;
+  }
+  monSel.onchange = fillDays; yearSel.onchange = fillDays;
+  hourSel.innerHTML = Array.from({length: 24}, (_, i) => `<option value="${i}">${String(i).padStart(2,'0')}</option>`).join('');
+  minSel.innerHTML = Array.from({length: 60}, (_, i) => i).map(m => `<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
+  fillDays();
+  monSel.value = jm; yearSel.value = jy; fillDays(); daySel.value = jd;
+  hourSel.value = now.getHours();
+}
+function getReminderISO() {
+  if (!document.getElementById('rem-enable').checked) return '';
+  const jy = parseInt(document.getElementById('rem-year').value);
+  const jm = parseInt(document.getElementById('rem-month').value);
+  const jd = parseInt(document.getElementById('rem-day').value);
+  const hh = parseInt(document.getElementById('rem-hour').value);
+  const mm = parseInt(document.getElementById('rem-min').value);
+  const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+  const dt = new Date(gy, gm - 1, gd, hh, mm, 0);
+  return dt.toISOString();
+}
+
+// ---------- IN-APP ALARM ----------
+const alertedCallIds = new Set();
+if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 — پیانو-مانند
+    notes.forEach((freq, idx) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      const startAt = ctx.currentTime + idx * 0.16;
+      g.gain.setValueAtTime(0, startAt);
+      g.gain.linearRampToValueAtTime(0.2, startAt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, startAt + 0.5);
+      o.start(startAt); o.stop(startAt + 0.55);
     });
+    setTimeout(() => ctx.close(), 1200);
+  } catch (e) {}
+}
+function checkAlarms() {
+  const now = new Date();
+  db.collection('calls').get().then(snap => {
+    snap.forEach(doc => {
+      const c = doc.data();
+      if (c.nextReminder && new Date(c.nextReminder) <= now && !alertedCallIds.has(doc.id)) {
+        alertedCallIds.add(doc.id);
+        beep();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('یادآوری تماس', { body: `باید با ${c.driverName} (${c.driverPhone}) تماس بگیری` });
+        }
+      }
+    });
+  });
+}
+setInterval(checkAlarms, 30000);
 
-    function doLogin() {
-      const email = document.getElementById('email').value.trim();
-      const pass = document.getElementById('pass').value;
-      const errBox = document.getElementById('err');
-      const btn = document.getElementById('loginBtn');
-      errBox.textContent = '';
-      if (!email || !pass) { errBox.textContent = 'ایمیل و رمز عبور رو وارد کن'; return; }
-      btn.disabled = true; btn.textContent = 'در حال ورود...';
-      auth.signInWithEmailAndPassword(email, pass)
-        .then(() => { window.location.href = "app.html"; })
-        .catch(e => {
-          const messages = {
-            'auth/network-request-failed': 'مشکل شبکه/اینترنت — اتصال به سرور برقرار نشد (اگه VPN روشنه، خاموشش کن و دوباره امتحان کن)',
-            'auth/wrong-password': 'رمز عبور اشتباهه',
-            'auth/invalid-credential': 'ایمیل یا رمز اشتباهه',
-            'auth/user-not-found': 'این ایمیل توی سیستم ثبت نشده',
-            'auth/too-many-requests': 'چندبار اشتباه وارد کردی، چند دقیقه صبر کن و دوباره امتحان کن',
-            'auth/invalid-email': 'فرمت ایمیل درست نیست'
-          };
-          errBox.textContent = 'ورود ناموفق: ' + (messages[e.code] || (e.code + ' — ' + e.message));
-          btn.disabled = false; btn.textContent = 'ورود';
-        });
+// ---------- DRIVERS ----------
+function loadDrivers() {
+  db.collection('drivers').orderBy('name').onSnapshot(snap => {
+    driversCache = [];
+    snap.forEach(doc => driversCache.push({ id: doc.id, ...doc.data() }));
+    renderProvinceChips();
+    applyFilter();
+    renderTerminated();
+  });
+}
+function statusBadgeClass(status) {
+  if (status === 'در حال انجام سفر') return 'ok';
+  if (status === 'بدون سفر') return 'due';
+  if (status === 'منتظر کارت بعدی') return 'wait';
+  if (status === 'مرخصی') return 'leave';
+  if (status === 'عدم قبول سفر') return 'off';
+  if (status === 'خاتمه') return 'terminated';
+  return '';
+}
+const STATUS_OPTIONS = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'عدم قبول سفر', 'خاتمه'];
+function statusSelectHtml(d) {
+  const current = STATUS_OPTIONS.includes(d.status) ? d.status : '';
+  const extra = current ? '' : `<option value="" hidden>${d.status || '-'}</option>`;
+  const tripInfo = (d.status === 'در حال انجام سفر' && (d.tripId || d.tripDate))
+    ? `<div style="font-size:10px; color:#64748b; margin-top:3px; white-space:nowrap;">${d.tripId ? 'کد: ' + d.tripId : ''}${d.tripDate ? ' — ' + d.tripDate : ''}</div>` : '';
+  return `<select class="badge ${statusBadgeClass(d.status)}" style="width:auto; margin:0; border:none; cursor:pointer;" onchange="quickSetStatus('${d.id}', this.value)">
+    ${extra}${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
+  </select>${tripInfo}`;
+}
+const TRASH_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1.2 14.2A2 2 0 0 1 15.8 22H8.2a2 2 0 0 1-2-1.8L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>`;
+function quickSetStatus(id, status) {
+  const update = { status };
+  if (status !== 'خاتمه') update.terminated = false;
+  db.collection('drivers').doc(id).update(update).catch(err => alert('خطا: ' + err.message));
+}
+const selectedDriverIds = new Set();
+function renderDriverRow(d) {
+  const checked = selectedDriverIds.has(d.id) ? 'checked' : '';
+  return `<tr onclick="openDriver('${d.id}')">
+      <td onclick="event.stopPropagation()"><input type="checkbox" style="width:auto; margin:0;" ${checked} onchange="toggleSelectRow('${d.id}', this.checked)"></td>
+      <td>${d.name || '-'}</td>
+      <td>${d.phone || '-'}</td>
+      <td><span style="text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); filterProvince('${(d.province || d.zone || '').replace(/'/g,"")}')">${d.province || d.zone || '-'}</span></td>
+      <td onclick="event.stopPropagation()">${statusSelectHtml(d)}</td>
+      <td onclick="event.stopPropagation()"><button class="btn red" style="padding:6px 9px;" title="قطع همکاری (بره تو لیست قطع‌همکاری)" onclick="quickTerminate('${d.id}')">${TRASH_SVG}</button></td>
+    </tr>`;
+}
+function toggleSelectRow(id, checked) {
+  if (checked) selectedDriverIds.add(id); else selectedDriverIds.delete(id);
+  updateBulkBar();
+}
+function toggleSelectAll(chk) {
+  const rows = document.querySelectorAll('#driversTable input[type=checkbox]');
+  rows.forEach(r => { r.checked = chk.checked; });
+  if (chk.checked) applyFilterVisible().forEach(d => selectedDriverIds.add(d.id));
+  else selectedDriverIds.clear();
+  updateBulkBar();
+}
+function applyFilterVisible() {
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  return driversCache.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    toEnglishDigits(d.phone || '').includes(toEnglishDigits(q)) ||
+    (d.province || d.zone || '').toLowerCase().includes(q));
+}
+function updateBulkBar() {
+  document.getElementById('bulkCount').textContent = selectedDriverIds.size;
+  document.getElementById('bulkBar').style.display = selectedDriverIds.size ? 'block' : 'none';
+}
+function quickTerminate(id) {
+  const d = driversCache.find(x => x.id === id);
+  if (!confirm(`"${d.name}" قطع همکاری بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط میره تو لیست «قطع همکاری».`)) return;
+  db.collection('drivers').doc(id).update({ status: 'خاتمه', terminated: true }).catch(err => alert('خطا: ' + err.message));
+}
+function bulkDelete() {
+  if (!selectedDriverIds.size) return;
+  if (!confirm(`مطمئنی می‌خوای ${selectedDriverIds.size} راننده رو کامل و برای همیشه حذف کنی؟ تاریخچه تماس‌هاشون هم پاک میشه.`)) return;
+  const ids = [...selectedDriverIds];
+  Promise.all(ids.map(id =>
+    db.collection('calls').where('driverId', '==', id).get()
+      .then(snap => Promise.all(snap.docs.map(doc => doc.ref.delete())))
+      .then(() => db.collection('drivers').doc(id).delete())
+  )).then(() => {
+    selectedDriverIds.clear();
+    updateBulkBar();
+  }).catch(err => alert('خطا در حذف گروهی: ' + err.message));
+}
+function renderProvinceChips() {
+  const provinces = [...new Set(driversCache.map(d => d.province || d.zone).filter(Boolean))].sort();
+  const box = document.getElementById('provinceChips');
+  if (!provinces.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<span class="badge" style="cursor:pointer; background:#e2e8f0;" onclick="filterProvince('')">همه</span> ` +
+    provinces.map(p => `<span class="badge" style="cursor:pointer; background:#dbeafe; color:#1e40af; margin-left:4px;" onclick="filterProvince('${p.replace(/'/g,"")}')">${p}</span>`).join('');
+}
+function filterProvince(name) {
+  document.getElementById('searchBox').value = name;
+  switchTab('drivers');
+  applyFilter();
+}
+function applyFilter() {
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const tbody = document.getElementById('driversTable');
+  const filtered = driversCache.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    toEnglishDigits(d.phone || '').includes(toEnglishDigits(q)) ||
+    (d.province || d.zone || '').toLowerCase().includes(q));
+  tbody.innerHTML = filtered.map(renderDriverRow).join('');
+  document.getElementById('driversEmpty').style.display = filtered.length ? 'none' : 'block';
+}
+document.getElementById('searchBox').addEventListener('input', applyFilter);
+function renderTerminated() {
+  const list = driversCache.filter(d => d.terminated === true);
+  const tbody = document.getElementById('terminatedTable');
+  tbody.innerHTML = list.map(d => `
+    <tr onclick="openDriver('${d.id}')">
+      <td>${d.name || '-'}</td>
+      <td>${d.phone || '-'}</td>
+      <td>${d.province || d.zone || '-'}</td>
+    </tr>`).join('');
+  document.getElementById('terminatedEmpty').style.display = list.length ? 'none' : 'block';
+}
+
+let editingDriverId = null;
+function openDriverForm() {
+  editingDriverId = null;
+  document.getElementById('nd-title').textContent = 'راننده جدید';
+  document.getElementById('nd-name').value = '';
+  document.getElementById('nd-phone').value = '';
+  document.getElementById('nd-province').value = '';
+  document.getElementById('nd-address').value = '';
+  document.getElementById('newDriverModalBg').classList.add('show');
+}
+function openEditDriver() {
+  const d = driversCache.find(x => x.id === currentDriverId);
+  editingDriverId = currentDriverId;
+  document.getElementById('nd-title').textContent = 'ویرایش راننده';
+  document.getElementById('nd-name').value = d.name || '';
+  document.getElementById('nd-phone').value = d.phone || '';
+  document.getElementById('nd-province').value = d.province || d.zone || '';
+  document.getElementById('nd-address').value = d.address || '';
+  closeModal('driverModalBg');
+  document.getElementById('newDriverModalBg').classList.add('show');
+}
+function saveDriverForm() {
+  const name = document.getElementById('nd-name').value.trim();
+  if (!name) { alert('نام الزامیه'); return; }
+  const data = {
+    name,
+    phone: toEnglishDigits(document.getElementById('nd-phone').value.trim()),
+    province: document.getElementById('nd-province').value.trim(),
+    address: document.getElementById('nd-address').value.trim(),
+    updatedBy: currentUser.email
+  };
+  if (!editingDriverId) data.status = 'بدون سفر';
+  const promise = editingDriverId
+    ? db.collection('drivers').doc(editingDriverId).update(data)
+    : db.collection('drivers').add({ ...data, createdAt: new Date().toISOString() });
+  promise.then(() => closeModal('newDriverModalBg')).catch(err => alert('خطا در ذخیره: ' + err.message));
+}
+
+function openDriver(id) {
+  currentDriverId = id;
+  const d = driversCache.find(x => x.id === id);
+  document.getElementById('dm-name').textContent = d.name;
+  document.getElementById('dm-info').textContent = `${d.phone || ''} | ${d.province || d.zone || ''} | ${d.address || ''}${d.tripId ? ' | کد سفر فعلی: ' + d.tripId : ''}${d.tripDate ? ' (تاریخ: ' + d.tripDate + ')' : ''}`;
+  document.getElementById('dm-status').textContent = d.status || '-';
+  document.getElementById('dm-status').className = 'badge ' + statusBadgeClass(d.status);
+  document.getElementById('callTripDate').value = '';
+  document.getElementById('callTripId').value = d.tripId || '';
+  document.getElementById('callNote').value = '';
+  document.getElementById('rem-enable').checked = false;
+  fillReminderPicker();
+  document.getElementById('rem-fields').style.opacity = .4;
+  document.getElementById('driverModalBg').classList.add('show');
+  loadHistory(id);
+}
+function loadHistory(driverId) {
+  const box = document.getElementById('dm-history');
+  box.innerHTML = '<div class="empty">در حال بارگذاری...</div>';
+  db.collection('calls').where('driverId', '==', driverId).get().then(snap => {
+    if (snap.empty) { box.innerHTML = '<div class="empty">هنوز تماسی ثبت نشده</div>'; return; }
+    const docs = snap.docs.slice().sort((a, b) => new Date(b.data().createdAt) - new Date(a.data().createdAt));
+    box.innerHTML = docs.map(doc => {
+      const c = doc.data();
+      return `<div class="hist-item">
+        <b>${c.result}</b> ${c.tripId ? '— سفر: ' + c.tripId : ''} ${c.tripDate ? '(' + c.tripDate + ')' : ''}
+        <div>${c.note || ''}</div>
+        <div class="meta">ثبت‌شده توسط ${c.calledBy} — ${new Date(c.createdAt).toLocaleString('fa-IR')}
+        ${c.nextReminder ? ' | یادآوری بعدی: ' + new Date(c.nextReminder).toLocaleString('fa-IR') : ''}</div>
+      </div>`;
+    }).join('');
+  }).catch(err => { box.innerHTML = '<div class="empty">خطا در بارگذاری تاریخچه: ' + err.message + '</div>'; });
+}
+function deleteDriver() {
+  const d = driversCache.find(x => x.id === currentDriverId);
+  if (!confirm(`"${d.name}" به عنوان قطع‌همکاری ثبت بشه؟ اطلاعات و تاریخچه‌ش پاک نمیشه، فقط وضعیتش «خاتمه» میشه و میره تو لیست «قطع همکاری».`)) return;
+  db.collection('drivers').doc(currentDriverId).update({ status: 'خاتمه', terminated: true })
+    .then(() => { closeModal('driverModalBg'); loadReminders(); })
+    .catch(err => alert('خطا: ' + err.message));
+}
+function submitCall() {
+  const d = driversCache.find(x => x.id === currentDriverId);
+  const reminder = getReminderISO();
+  const result = document.getElementById('callResult').value;
+  const tripId = document.getElementById('callTripId').value.trim();
+  const tripDate = document.getElementById('callTripDate').value.trim();
+  db.collection('calls').add({
+    driverId: currentDriverId,
+    driverName: d.name,
+    driverPhone: d.phone || '',
+    tripId,
+    tripDate,
+    result,
+    note: document.getElementById('callNote').value.trim(),
+    nextReminder: reminder,
+    calledBy: currentUser.email,
+    createdAt: new Date().toISOString()
+  }).then(() => {
+    if (result === 'سفر تخصیص داده شد') {
+      return db.collection('drivers').doc(currentDriverId).update({
+        status: 'در حال انجام سفر', tripId, tripDate
+      });
     }
-    document.getElementById('pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  </script>
+    if (result === 'عدم قبول سفر') {
+      return db.collection('drivers').doc(currentDriverId).update({ status: 'عدم قبول سفر' });
+    }
+  }).then(() => {
+    loadHistory(currentDriverId);
+    document.getElementById('callNote').value = '';
+    document.getElementById('rem-enable').checked = false;
+    document.getElementById('rem-fields').style.opacity = .4;
+    loadReminders();
+  }).catch(err => alert('خطا در ثبت تماس: ' + err.message));
+}
+
+// ---------- REMINDERS ----------
+function loadReminders() {
+  const now = new Date();
+  const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+  db.collection('calls').get().then(snap => {
+    const due = [];
+    snap.forEach(doc => {
+      const c = doc.data();
+      if (c.nextReminder && new Date(c.nextReminder) <= endOfDay) due.push(c);
+    });
+    due.sort((a, b) => new Date(a.nextReminder) - new Date(b.nextReminder));
+    const box = document.getElementById('reminderList');
+    document.getElementById('reminderCount').textContent = due.length ? `(${due.length})` : '';
+    if (!due.length) { box.innerHTML = '<div class="empty">یادآوری فعالی برای امروز نیست 🎉</div>'; return; }
+    box.innerHTML = due.map(c => {
+      const overdue = new Date(c.nextReminder) < now;
+      return `<div class="hist-item" style="border-color:${overdue ? '#dc2626' : '#f59e0b'}" onclick="openDriver('${c.driverId}')">
+        <b>${c.driverName}</b> — ${c.driverPhone}
+        <span class="badge ${overdue ? 'off' : 'due'}" style="margin-right:6px;">${overdue ? 'دیرشده' : 'امروز'}</span>
+        <div class="meta">یادآوری: ${new Date(c.nextReminder).toLocaleString('fa-IR')} | آخرین یادداشت: ${c.note || '-'}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+// ---------- ADMIN REPORTS ----------
+let allCallsCache = [];
+function loadAllCallsForReports() {
+  db.collection('calls').onSnapshot(snap => {
+    allCallsCache = [];
+    snap.forEach(doc => allCallsCache.push({ id: doc.id, ...doc.data() }));
+    allCallsCache.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const agents = [...new Set(allCallsCache.map(c => c.calledBy))].sort();
+    const sel = document.getElementById('reportAgentFilter');
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="">همه‌ی کاربران</option>' + agents.map(a => `<option value="${a}">${a}</option>`).join('');
+    sel.value = prevVal;
+    renderReports();
+  });
+}
+function renderReports() {
+  const agent = document.getElementById('reportAgentFilter').value;
+  const list = agent ? allCallsCache.filter(c => c.calledBy === agent) : allCallsCache;
+  const box = document.getElementById('reportList');
+  if (!list.length) { box.innerHTML = '<div class="empty">تماسی ثبت نشده</div>'; return; }
+  box.innerHTML = list.map(c => `
+    <div class="hist-item" onclick="openDriver('${c.driverId}')">
+      <b>${c.driverName}</b> — ${c.driverPhone} | نتیجه: <b>${c.result}</b> ${c.tripId ? '| کد سفر: ' + c.tripId : ''}
+      <div>${c.note || ''}</div>
+      <div class="meta">ثبت‌شده توسط ${c.calledBy} — ${new Date(c.createdAt).toLocaleString('fa-IR')}</div>
+    </div>`).join('');
+}
+
+// ---------- TICKETS ----------
+let ticketsCache = [];
+function submitTicket() {
+  const subject = document.getElementById('tk-subject').value.trim();
+  const desc = document.getElementById('tk-desc').value.trim();
+  const assignee = document.getElementById('tk-assignee').value.trim();
+  if (!subject) { alert('موضوع الزامیه'); return; }
+  db.collection('tickets').add({
+    subject, description: desc, assignedTo: assignee, status: 'باز',
+    createdBy: currentUser.email, createdAt: new Date().toISOString()
+  }).then(() => {
+    document.getElementById('tk-subject').value = '';
+    document.getElementById('tk-desc').value = '';
+    document.getElementById('tk-assignee').value = '';
+  }).catch(err => alert('خطا: ' + err.message));
+}
+function loadTickets() {
+  db.collection('tickets').onSnapshot(snap => {
+    ticketsCache = [];
+    snap.forEach(doc => ticketsCache.push({ id: doc.id, ...doc.data() }));
+    ticketsCache.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    renderTickets();
+  });
+}
+function renderTickets() {
+  const onlyMine = document.getElementById('tk-onlyMine').checked;
+  const tickets = onlyMine ? ticketsCache.filter(t => t.assignedTo === currentUser.email) : ticketsCache;
+  const box = document.getElementById('ticketList');
+  if (!tickets.length) { box.innerHTML = '<div class="empty">تیکتی ثبت نشده</div>'; return; }
+  box.innerHTML = tickets.map(t => `
+    <div class="hist-item" style="border-color:${t.status === 'باز' ? '#f59e0b' : '#22c55e'}">
+      <b>${t.subject}</b> <span class="badge ${t.status === 'باز' ? 'due' : 'ok'}" style="margin-right:6px;">${t.status}</span>
+      <div>${t.description || ''}</div>
+      <div class="meta">ثبت‌شده توسط ${t.createdBy} — ${new Date(t.createdAt).toLocaleString('fa-IR')} ${t.assignedTo ? '| ارجاع به: ' + t.assignedTo : ''}</div>
+      <div class="row" style="margin-top:6px; align-items:center;">
+        <button class="btn ${t.status === 'باز' ? 'gray' : ''}" style="padding:4px 10px; font-size:11px; flex:none;" onclick="toggleTicket('${t.id}','${t.status === 'باز' ? 'بسته' : 'باز'}')">${t.status === 'باز' ? 'بستن تیکت' : 'بازکردن دوباره'}</button>
+        <input id="reassign-${t.id}" placeholder="ایمیل برای ارجاع/تغییر ارجاع" style="margin-bottom:0; flex:1; min-width:140px;" value="${t.assignedTo || ''}">
+        <button class="btn" style="padding:4px 10px; font-size:11px; flex:none;" onclick="reassignTicket('${t.id}')">ارجاع بده</button>
+        ${currentUser.email === 'mrezati17@gmail.com' ? `<button class="btn red" style="padding:4px 10px; font-size:11px; flex:none;" onclick="deleteTicket('${t.id}')">🗑 حذف</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+function toggleTicket(id, newStatus) {
+  db.collection('tickets').doc(id).update({ status: newStatus });
+}
+function reassignTicket(id) {
+  const val = document.getElementById('reassign-' + id).value.trim();
+  db.collection('tickets').doc(id).update({ assignedTo: val }).catch(err => alert('خطا: ' + err.message));
+}
+function deleteTicket(id) {
+  if (currentUser.email !== 'mrezati17@gmail.com') { alert('فقط ادمین می‌تونه تیکت رو حذف کنه.'); return; }
+  if (!confirm('این تیکت برای همیشه پاک بشه؟')) return;
+  db.collection('tickets').doc(id).delete().catch(err => alert('خطا: ' + err.message));
+}
+
+// ---------- MAINTENANCE ----------
+function fixEmptyStatuses() {
+  const toFix = driversCache.filter(d => !d.status);
+  if (!toFix.length) { document.getElementById('fixStatusResult').textContent = 'همه‌ی رانندگان وضعیت دارن ✅'; return; }
+  Promise.all(toFix.map(d => db.collection('drivers').doc(d.id).update({ status: 'بدون سفر' })))
+    .then(() => { document.getElementById('fixStatusResult').textContent = `✅ وضعیت ${toFix.length} راننده روی «بدون سفر» تنظیم شد.`; });
+}
+function migrateOldStatuses() {
+  const knownNew = ['در حال انجام سفر', 'بدون سفر', 'منتظر کارت بعدی', 'مرخصی', 'خاتمه'];
+  const toFix = driversCache.filter(d => d.status && !knownNew.includes(d.status));
+  if (!toFix.length) { document.getElementById('fixStatusResult').textContent = 'وضعیت قدیمی‌ای برای تبدیل پیدا نشد ✅'; return; }
+  const map = (s) => {
+    if (s === 'فعال') return 'در حال انجام سفر';
+    if (s === 'غیر فعال' || s === 'غیرفعال') return 'بدون سفر';
+    return 'بدون سفر';
+  };
+  Promise.all(toFix.map(d => db.collection('drivers').doc(d.id).update({ status: map(d.status) })))
+    .then(() => { document.getElementById('fixStatusResult').textContent = `✅ وضعیت ${toFix.length} راننده به وضعیت‌های جدید تبدیل شد.`; });
+}
+
+const HEADER_MAP = {
+  'نام و نام خانوادگی': 'name', 'شماره تماس': 'phone', 'آدرس': 'address', 'آدرس ': 'address',
+  'محدوده': 'zone', 'زمان فعالیت': 'activityTime', 'وضعیت کنونی': 'status', 'وضعیت': 'status', 'وضیعت': 'status',
+  'شناسه سفر': 'tripId', 'کد سفر': 'tripId', 'خودرو': 'vehicle', 'پذیرش سفر': 'tripAcceptance',
+  'توضیحات پشتیبانی': 'supportNotes', 'توضیحات پشتیبان کسبی': 'supportNotes',
+  'توضیحات امور رانندگان': 'driverAffairsNotes', 'امور رانندگان': 'driverAffairsNotes',
+  'بخش فعالیت راننده': 'driverAffairsNotes', 'توضیحات': 'supportNotes'
+};
+let workbook = null;
+function loadXlsxLib() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX) return resolve();
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('کتابخانه‌ی اکسل بارگذاری نشد — VPN رو چک کن و دوباره امتحان کن.'));
+    document.head.appendChild(s);
+  });
+}
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadXlsxLib().then(() => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      workbook = XLSX.read(ev.target.result, { type: 'binary' });
+      const sel = document.getElementById('sheetSelect');
+      sel.innerHTML = workbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+      document.getElementById('sheetPicker').style.display = 'block';
+      previewSheet();
+    };
+    reader.readAsBinaryString(file);
+  }).catch(err => alert(err.message));
+}
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i].some(cell => String(cell || '').trim() === 'نام و نام خانوادگی')) return i;
+  }
+  return -1;
+}
+function previewSheet() {
+  const sheetName = document.getElementById('sheetSelect').value;
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+  const headerIdx = findHeaderRow(rows);
+  if (headerIdx === -1) {
+    document.getElementById('previewBox').innerHTML = '<p style="color:#dc2626;">ردیف هدر (نام و نام خانوادگی) توی این شیت پیدا نشد.</p>';
+    importRows = [];
+    return;
+  }
+  const headers = rows[headerIdx].map(h => String(h || '').trim());
+  const cols = workbook.Sheets[sheetName]['!cols'] || [];
+  const dataRows = rows.slice(headerIdx + 1).filter(r => r.some(c => String(c || '').trim() !== ''));
+  importRows = dataRows.map(r => {
+    const obj = { province: sheetName, extra: '' };
+    headers.forEach((h, i) => {
+      if (cols[i] && (cols[i].hidden || cols[i].wpx === 0 || cols[i].width === 0)) return;
+      const field = HEADER_MAP[h];
+      const val = String(r[i] || '').trim();
+      if (!val) return;
+      if (field) { obj[field] = field === 'phone' ? toEnglishDigits(val) : val; }
+      else if (h) { obj.extra += (obj.extra ? ' | ' : '') + h + ': ' + val; }
+    });
+    if (!obj.status) obj.status = 'بدون سفر';
+    return obj;
+  }).filter(o => o.name);
+  document.getElementById('previewBox').innerHTML = `
+    <p style="font-size:13px;">تعداد ردیف قابل وارد کردن: <b>${importRows.length}</b> (فقط ردیف‌هایی که نام دارن)</p>
+    <table><thead><tr><th>نام</th><th>شماره</th><th>وضعیت</th></tr></thead>
+    <tbody>${importRows.slice(0, 5).map(o => `<tr><td>${o.name}</td><td>${o.phone || '-'}</td><td>${o.status || '-'}</td></tr>`).join('')}</tbody></table>
+    ${importRows.length > 5 ? '<p style="font-size:12px;color:#94a3b8;">...و بقیه</p>' : ''}`;
+}
+function confirmImport() {
+  if (!importRows.length) { alert('چیزی برای وارد کردن نیست'); return; }
+  const existingPhones = new Set(driversCache.map(d => toEnglishDigits(d.phone || '')));
+  let added = 0, skipped = 0;
+  const batchPromises = importRows.map(o => {
+    if (o.phone && existingPhones.has(o.phone)) { skipped++; return Promise.resolve(); }
+    added++;
+    return db.collection('drivers').add({
+      ...o, createdAt: new Date().toISOString(), updatedBy: currentUser.email
+    });
+  });
+  Promise.all(batchPromises).then(() => {
+    document.getElementById('importResult').textContent = `✅ ${added} راننده اضافه شد، ${skipped} مورد (شماره تکراری) رد شد.`;
+  });
+}
+</script>
 </body>
 </html>
