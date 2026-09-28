@@ -47,13 +47,18 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script>
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-
-    // اگر قبلاً لاگین کرده مستقیم بره به اپ
-    auth.onAuthStateChanged(user => {
-      if (user) window.location.href = "app.html";
-    });
+    const errBoxGlobal = document.getElementById('err');
+    let auth = null;
+    if (typeof firebase === 'undefined') {
+      errBoxGlobal.textContent = 'اسکریپت‌های Firebase بارگذاری نشد — احتمالاً مشکل اینترنت/فیلترینگ. VPN رو روشن و متصل کن، بعد صفحه رو با Ctrl+Shift+R رفرش کن.';
+    } else {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      // اگر قبلاً لاگین کرده مستقیم بره به اپ
+      auth.onAuthStateChanged(user => {
+        if (user) window.location.href = "app.html";
+      });
+    }
 
     function doLogin() {
       const email = document.getElementById('email').value.trim();
@@ -61,12 +66,30 @@
       const errBox = document.getElementById('err');
       const btn = document.getElementById('loginBtn');
       errBox.textContent = '';
+      if (!auth) { errBox.textContent = 'Firebase بارگذاری نشده — VPN رو چک کن و صفحه رو رفرش کن (Ctrl+Shift+R).'; return; }
       if (!email || !pass) { errBox.textContent = 'ایمیل و رمز عبور رو وارد کن'; return; }
       btn.disabled = true; btn.textContent = 'در حال ورود...';
+      errBox.textContent = 'در حال اتصال به سرور...';
+
+      const timer = setTimeout(() => {
+        errBox.textContent = 'پاسخی از سرور نیومد (بیش از ۲۰ ثانیه) — احتمالاً VPN قطعه یا کنده. VPN رو چک کن (روشن و متصل باشه) و دوباره امتحان کن.';
+        btn.disabled = false; btn.textContent = 'ورود';
+      }, 20000);
+
       auth.signInWithEmailAndPassword(email, pass)
-        .then(() => { window.location.href = "app.html"; })
+        .then(() => { clearTimeout(timer); window.location.href = "app.html"; })
         .catch(e => {
-          errBox.textContent = 'ورود ناموفق: ایمیل یا رمز اشتباهه';
+          clearTimeout(timer);
+          console.error('Login error:', e);
+          const messages = {
+            'auth/network-request-failed': 'مشکل شبکه/اینترنت — اتصال به سرور برقرار نشد. VPN رو چک کن (روشن و متصل باشه) و دوباره امتحان کن.',
+            'auth/wrong-password': 'رمز عبور اشتباهه',
+            'auth/invalid-credential': 'ایمیل یا رمز اشتباهه',
+            'auth/user-not-found': 'این ایمیل توی سیستم ثبت نشده',
+            'auth/too-many-requests': 'چندبار اشتباه وارد کردی، چند دقیقه صبر کن و دوباره امتحان کن',
+            'auth/invalid-email': 'فرمت ایمیل درست نیست'
+          };
+          errBox.textContent = 'ورود ناموفق: ' + (messages[e.code] || (e.code + ' — ' + e.message));
           btn.disabled = false; btn.textContent = 'ورود';
         });
     }
